@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  # 1. ?????
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql-3c893072-a901211-ba4b.a.aivencloud.com:10093/defaultdb?ssl-mode=REQUIRED
+    username: avnadmin
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  # 2. JPA ?? (???????? datasource ??)
+  jpa:
+    hibernate:
+      ddl-auto: update
+#      ??????
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+#
