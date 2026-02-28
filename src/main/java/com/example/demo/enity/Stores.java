@@ -44,4 +44,9 @@ public class Stores {
 
     @Column(precision = 2, scale = 1)
     private BigDecimal avgRating = BigDecimal.ZERO;
+
+    public void setStatus(String pending) {
+    }
+
+
 }

@@ -14,7 +14,6 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // 訪客路徑放行 (如果是 OPTIONS 也要放行，處理跨域)
         if (request.getMethod().equals("OPTIONS")) return true;
 
         String token = request.getHeader("token");
@@ -22,7 +21,17 @@ public class JwtInterceptor implements HandlerInterceptor {
             throw new CustomException("401", "請先登入才能操作喔！");
         }
 
-        // 這裡可以呼叫 jwtUtils 驗證 Token 是否過期或毀損
+        try {
+            // 💡 解析並取得 ID
+            Long userId = jwtUtils.getUserIdFromToken(token);
+            // 💡 關鍵：把 ID 存到 Request 裡，取名為 "currentUserId"
+            request.setAttribute("currentUserId", userId);
+        } catch (Exception e) {
+            throw new CustomException("401", "Token 已過期或無效，請重新登入");
+        }
+
         return true;
     }
+
+
 }
