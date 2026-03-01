@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "stores") // 對應 Table stores
+@Table(name = "stores") // 對應資料庫中的 stores 表
 @Data
 public class Stores {
 
@@ -13,40 +13,57 @@ public class Stores {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 關聯到 Users 表
+    /**
+     * 💡 核心邏輯：一對一關聯使用者
+     * JoinColumn(name = "user_id")：在 stores 表中建立一個名為 user_id 的外鍵。
+     * 每個使用者只能擁有一間商店。
+     */
     @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
     private Users user;
 
     @Column(nullable = false, length = 100)
     private String name; // 店名
 
-    private String imageUrl;
+    private String imageUrl; // 商店頭像/封面圖
 
     @Column(nullable = false)
-    private String address;
+    private String address; // 商店地址
 
     @Column(precision = 10, scale = 8)
-    private BigDecimal latitude;
+    private BigDecimal latitude; // 緯度
 
     @Column(precision = 11, scale = 8)
-    private BigDecimal longitude;
+    private BigDecimal longitude; // 經度
 
-    private boolean allowsDelivery = true;
+    private boolean allowsDelivery = true; // 是否支援外送
 
+    /**
+     * JSON 格式儲存：統編、稅務資訊、或是額外的商店介紹
+     */
     @Column(columnDefinition = "json")
-    private String companyInfo; // 統編、門檻等
+    private String companyInfo;
 
+    /**
+     * JSON 格式儲存：例如 {"Mon": "09:00-18:00", "Tue": "09:00-18:00"}
+     */
     @Column(columnDefinition = "json")
-    private String openingHours; // 營業時間
+    private String openingHours;
 
-    private boolean isAcceptingOrders = true;
+    private boolean isAcceptingOrders = true; // 是否營業中/接單中
 
+    /**
+     * 商店評分：預設為 0.0
+     */
     @Column(precision = 2, scale = 1)
     private BigDecimal avgRating = BigDecimal.ZERO;
 
-    public void setStatus(String pending) {
-    }
-
-
+    /**
+     * 💡 審核狀態 (蝦皮模式關鍵)
+     * PENDING: 申請中 (買家剛按申請)
+     * APPROVED: 已核准 (正式解鎖賣家功能)
+     * REJECTED: 已退回
+     */
+    @Column(nullable = false, length = 20)
+    private String status = "PENDING";
 }

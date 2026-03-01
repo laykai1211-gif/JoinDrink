@@ -7,7 +7,7 @@ import java.util.Date;
 
 @Component
 public class JwtUtils {
-    private String secret = "YourSuperSecretKeyForDrinkingApp2026"; // 密鑰
+    private String secret = "ThisIsASuperLongSecretKeyForDrinkingApp2026ThatMustBeAtLeast64CharactersLongToSatisfyHS512Requirements!"; // 密鑰
     private long expiration = 86400000; // 24小時有效
 
     public String generateToken(Long userId,String phoneNumber) {

@@ -1,10 +1,13 @@
+// UsersRepository.java
 package com.example.demo.repository;
 
 import com.example.demo.enity.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.Optional;
 
 public interface UsersRepository extends JpaRepository<Users, Long> {
     Optional<Users> findByPhoneNumber(String phoneNumber);
+    Optional<Users> findByFirebaseUid(String firebaseUid);
+
+    boolean existsByPhoneNumber(String phone);
 }

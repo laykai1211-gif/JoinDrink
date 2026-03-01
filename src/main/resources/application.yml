@@ -2,23 +2,25 @@ server:
   port: 8081
 
 spring:
-  # 1. ?????
+  # 💡 解決 Security 隨機密碼問題
+  security:
+    user:
+      name: none
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://mysql-3c893072-a901211-ba4b.a.aivencloud.com:10093/defaultdb?ssl-mode=REQUIRED
+    url: jdbc:mysql://mysql-3c893072-a901211-ba4b.a.aivencloud.com:10093/defaultdb?ssl-mode=REQUIRED&characterEncoding=utf8&serverTimezone=UTC
     username: avnadmin
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 5
       minimum-idle: 2
 
-  # 2. JPA ?? (???????? datasource ??)
   jpa:
     hibernate:
       ddl-auto: update
-#      ??????
     show-sql: true
+    open-in-view: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
-#
+        format_sql: true
