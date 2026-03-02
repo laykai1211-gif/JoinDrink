@@ -17,7 +17,7 @@ public class Users {
     @Column(unique = true)
     private String firebaseUid;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false,name = "phone_number")
     private String phoneNumber;
 
     private String password; // 儲存經加密後的密碼

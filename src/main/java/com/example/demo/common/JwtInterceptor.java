@@ -17,19 +17,15 @@ public class JwtInterceptor implements HandlerInterceptor {
         // 1. 放行 OPTIONS 預檢請求
         if (request.getMethod().equals("OPTIONS")) return true;
 
-        // 2. 💡 關鍵修正：放行所有驗證相關的 API (白名單)
+        // 2. 💡 關鍵修正：放行所有 /api/auth/ 開頭的請求
         String path = request.getRequestURI();
-        if (path.contains("/api/auth/login") ||
-                path.contains("/api/auth/register") ||
-                path.contains("/api/auth/check-phone") ||
-                path.contains("/api/auth/social-login")) {
+        if (path.startsWith("/api/auth/")) {
             return true;
         }
 
-        // 3. 剩下的請求才檢查 Token
+        // 3. 剩下的請求（例如 /api/order, /api/user/profile）才檢查 Token
         String token = request.getHeader("token");
         if (token == null || token.isEmpty()) {
-            // 💡 這裡拋出的 401，會被你的 GlobalExceptionHandler 抓到回傳 Result
             throw new CustomException("401", "請先登入才能操作喔！");
         }
 
