@@ -26,6 +26,13 @@ spring:
         format_sql: true
 
 
+# 💡 移出 spring 層級，這樣才能正確讀取
+#twilio:
+#  account_sid: ACcd29c3b55f80662469f2c75ccdf30bd2
+#  auth_token: 309a4eda08ab821805b81ff41e13911f
+#  from_number: "+15077765726"
 
 app:
   reset_password_url: "http://localhost:5173/Resetpassword"
+  sms:
+    mode: "mock" # 💡 設定為 real，後端就會強迫驗證 Firebase Token

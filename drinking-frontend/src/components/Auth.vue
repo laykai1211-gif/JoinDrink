@@ -1,213 +1,154 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 p-6 font-sans">
-    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-white">
-
-      <div id="recaptcha-container"></div>
-
-      <div class="text-center mb-6">
-        <h1 class="text-4xl font-black text-indigo-600 mb-2">jo飲 揪飲</h1>
-        <p class="text-gray-400 text-sm">串聯每一口美好，從登入開始</p>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>會員登入</h1>
+        <p>歡迎回來，請選擇登入方式</p>
       </div>
 
-      <div v-if="regStep === 'START'" class="flex mb-6 bg-gray-100 rounded-2xl p-1">
-        <button @click="resetToLogin" :class="isLoginMode ? 'bg-white shadow-md text-indigo-600' : 'text-gray-500'" class="flex-1 py-2 rounded-xl font-bold transition-all">登入</button>
-        <button @click="isLoginMode = false" :class="!isLoginMode ? 'bg-white shadow-md text-indigo-600' : 'text-gray-500'" class="flex-1 py-2 rounded-xl font-bold transition-all">註冊</button>
-      </div>
-
-      <div v-if="isLoginMode" class="space-y-4 animate-in">
-        <input v-model="form.phoneNumber" type="tel" placeholder="手機號碼 (+8869...)" class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
-        <input v-model="form.password" type="password" placeholder="密碼" class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 outline-none focus:ring-4 focus:ring-indigo-100 transition-all" />
-        <button @click="handleLogin" :disabled="isLoading" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700 transition-all">
-          {{ isLoading ? '登入中...' : '立即進入商店' }}
+      <div class="auth-body">
+        <div class="form-group">
+          <label>手機號碼</label>
+          <input v-model="loginForm.phoneNumber" type="text" placeholder="0912345678" />
+        </div>
+        <div class="form-group">
+          <label>密碼</label>
+          <input v-model="loginForm.password" type="password" placeholder="請輸入密碼" @keyup.enter="handleLogin" />
+        </div>
+        <div class="form-options">
+          <router-link to="/reset-password" class="forgot-link">忘記密碼？</router-link>
+        </div>
+        <button @click="handleLogin" class="btn-primary" :disabled="isLoading">
+          {{ isLoading ? '登入中...' : '立即登入' }}
         </button>
-
-        <div class="relative py-4">
-          <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-gray-200"></span></div>
-          <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-gray-400">或</span></div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <button @click="handleSocialAuth('Google')" class="flex items-center justify-center py-3 border-2 border-gray-100 rounded-2xl hover:bg-gray-50 font-bold text-gray-600 transition-all">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-2" /> Google
-          </button>
-          <button @click="handleSocialAuth('Facebook')" class="flex items-center justify-center py-3 border-2 border-gray-100 rounded-2xl hover:bg-gray-50 font-bold text-gray-600 transition-all">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg" class="w-5 h-5 mr-2" /> FB
-          </button>
-        </div>
       </div>
 
-      <div v-else class="space-y-4 animate-in">
-        <div v-if="regStep === 'START'" class="space-y-4">
-          <p v-if="isSocialMode" class="text-indigo-600 font-bold text-center">首次登入，請完成手機綁定</p>
-          <input v-model="form.phoneNumber" type="tel" placeholder="輸入手機號碼 (+8869...)" class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 outline-none focus:ring-4 focus:ring-indigo-100" />
-          <button @click="sendOtp" :disabled="isLoading" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700 transition-all">
-            {{ isLoading ? '檢查中...' : '檢查並發送驗證碼' }}
-          </button>
-        </div>
+      <div class="social-divider"><span>或使用以下方式登入</span></div>
 
-        <div v-if="regStep === 'OTP'" class="space-y-4">
-          <p class="text-sm text-gray-500">已發送驗證碼至 {{ form.phoneNumber }}</p>
-          <input v-model="form.otpCode" type="text" maxlength="6" placeholder="000000" class="w-full py-5 rounded-2xl border-2 border-indigo-200 text-center text-4xl font-mono font-bold tracking-[0.3em] text-indigo-700 outline-none" />
-          <button @click="verifyOtp" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-emerald-600">驗證手機</button>
-          <button @click="regStep = 'START'" class="w-full text-xs text-gray-400">號碼填錯了？返回</button>
-        </div>
-
-        <div v-if="regStep === 'COMPLETE'" class="space-y-4">
-          <div class="bg-green-50 p-4 rounded-2xl border border-green-100 text-green-700 text-sm font-bold flex items-center">
-            ✅ 手機驗證成功：{{ form.phoneNumber }}
-          </div>
-          <input v-model="form.name" type="text" placeholder="您的真實姓名" class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 outline-none focus:ring-4 focus:ring-indigo-100" />
-          <input v-model="form.password" type="password" placeholder="設定登入密碼" class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 outline-none focus:ring-4 focus:ring-indigo-100" />
-          <button @click="finalRegister" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700">完成註冊，領取 $10,466.89</button>
-        </div>
+      <div class="social-login-group">
+        <button @click="loginWithGoogle" class="btn-social google">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
+          Google 登入
+        </button>
+        <button @click="loginWithFacebook" class="btn-social facebook">
+          <img src="https://upload.wikimedia.org/wikipedia/en/0/04/Facebook_f_logo_%282021%29.svg" alt="FB" />
+          Facebook 登入
+        </button>
       </div>
 
+      <div class="auth-footer">
+        <p>還沒有帳號嗎？ <router-link to="/register" class="register-link">立即註冊</router-link></p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onUnmounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { auth } from '../firebaseConfig'; // 💡 關鍵 1：確認這個 export 真的存在
+import {
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithRedirect,
+  getRedirectResult
+} from "firebase/auth";
 import axios from 'axios';
-import { auth, googleProvider, facebookProvider } from '../firebaseConfig';
-import { signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
-const isLoginMode = ref(true);
-const regStep = ref('START');
+const router = useRouter();
 const isLoading = ref(false);
-const isSocialMode = ref(false); // 標記是否為三方登入後的補填模式
+const loginForm = reactive({ phoneNumber: '', password: '' });
 
-const form = reactive({ phoneNumber: '', password: '', name: '', otpCode: '' });
-let confirmationResult = null;
-let currentIdToken = null; // 用於儲存 Firebase 的 Token
+// 🚀 頁面掛載：檢查是否有從 Google 跳轉回來的 Token
+onMounted(async () => {
+  if (!auth) {
+    console.error("❌ Firebase Auth 未正確初始化，請檢查 firebaseConfig.js");
+    return;
+  }
 
-const resetToLogin = () => {
-  isLoginMode.value = true;
-  regStep.value = 'START';
-  isSocialMode.value = false;
-};
-
-onUnmounted(() => {
-  if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null; }
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log("✅ 成功抓到跳轉結果！");
+      const idToken = await result.user.getIdToken();
+      await handleSocialLoginSuccess(idToken, result.providerId);
+    }
+  } catch (error) {
+    console.error("跳轉處理失敗:", error);
+  }
 });
 
-// ==========================================
-// 🔓 登入邏輯 (傳統)
-// ==========================================
-const handleLogin = async () => {
-  isLoading.value = true;
+// 🚀 三方登入跳轉成功後的後端對接
+const handleSocialLoginSuccess = async (idToken, provider) => {
   try {
-    const res = await axios.post('http://localhost:8081/api/auth/login', {
-      phoneNumber: form.phoneNumber,
-      password: form.password
+    const response = await axios.post('http://localhost:8081/api/auth/social-login', {
+      idToken: idToken,
+      provider: provider
     });
-    handleLoginSuccess(res.data);
-  } catch (err) {
-    window.alert("❌ " + (err.response?.data?.msg || "登入失敗"));
-  } finally { isLoading.value = false; }
+    if (response.data.code === "200" || response.data.code === 200) {
+      alert("✅ 登入成功！");
+      router.push('/dashboard');
+    }
+  } catch (error) {
+    alert("後端驗證失敗，請確認後端已開啟三方登入接口");
+  }
 };
 
-// ==========================================
-// 📝 漸進式註冊 / 綁定邏輯
-// ==========================================
+// 🚀 Google 登入
+const loginWithGoogle = async () => {
+  console.log("嘗試發起 Google 跳轉...");
+  if (!auth) return alert("Firebase 未載入");
 
-// 1. 檢查號碼並發送 OTP
-const sendOtp = async () => {
+  const provider = new GoogleAuthProvider();
+  try {
+    // 💡 關鍵 2：直接執行跳轉
+    await signInWithRedirect(auth, provider);
+  } catch (error) {
+    console.error("Google 跳轉失敗:", error);
+    alert("跳轉出錯: " + error.code);
+  }
+};
+
+// 🚀 Facebook 登入
+const loginWithFacebook = async () => {
+  const provider = new FacebookAuthProvider();
+  await signInWithRedirect(auth, provider);
+};
+
+// 🚀 手機登入
+const handleLogin = async () => {
+  if (!loginForm.phoneNumber || !loginForm.password) return alert("請填寫手機與密碼");
   isLoading.value = true;
   try {
-    const checkRes = await axios.get(`http://localhost:8081/api/auth/check-phone`, {
-      params: { phone: form.phoneNumber }
-    });
-
-    // 💡 注意：checkRes.data 是 Result 物件，checkRes.data.data 才是那個布林值
-    if (checkRes.data.data === true) {
-      window.alert("⚠️ 此號碼已註冊過，請直接登入");
-      isLoginMode.value = true; // 切換回登入模式
-      isLoading.value = false;
-      return; // 停止往下執行
+    const response = await axios.post('http://localhost:8081/api/auth/login', loginForm);
+    if (response.data.code === "200") {
+      alert("✅ 登入成功！");
+      router.push('/dashboard');
+    } else {
+      alert("❌ " + response.data.msg);
     }
-
-    // --- 只有當 data === false 時，才會執行到這裡 ---
-    console.log("號碼可用，準備發送簡訊...");
-
-    if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); }
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
-
-    const result = await signInWithPhoneNumber(auth, form.phoneNumber, window.recaptchaVerifier);
-    confirmationResult = result;
-    regStep.value = 'OTP'; // 切換到輸入驗證碼畫面
-    window.alert("✅ 驗證碼已發送");
-
-  } catch (err) {
-    console.error("檢查失敗:", err);
-    window.alert("系統錯誤或網路異常");
+  } catch (error) {
+    alert("伺服器連線失敗");
   } finally {
     isLoading.value = false;
   }
 };
-
-// 2. 驗證 OTP
-const verifyOtp = async () => {
-  try {
-    const result = await confirmationResult.confirm(form.otpCode);
-    currentIdToken = await result.user.getIdToken();
-    regStep.value = 'COMPLETE';
-    window.alert("✅ 驗證成功");
-  } catch (err) { window.alert("驗證碼錯誤"); }
-};
-
-// 3. 提交最終註冊 (兼容三方補填)
-const finalRegister = async () => {
-  try {
-    // 💡 這裡要打的是 social-login 接口，不是一般的 register
-    const res = await axios.post('http://localhost:8081/api/auth/social-login', {
-      idToken: "MOCK_TOKEN", // 或者真正的 Firebase Token
-      phoneNumber: form.phoneNumber, // 剛剛驗證的手機
-      name: form.name
-    });
-
-    if (res.data.code === '200') {
-      window.alert("🎊 綁定成功！一萬塊入帳");
-      handleLoginSuccess(res.data);
-    }
-  } catch (err) {
-    window.alert("註冊失敗：" + err.response?.data?.msg);
-  }
-};
-
-// ==========================================
-// 🎨 三方登入 (先辨認新老用戶)
-// ==========================================
-const handleSocialAuth = async (type) => {
-  const provider = type === 'Google' ? googleProvider : facebookProvider;
-  try {
-    const result = await signInWithPopup(auth, provider);
-    currentIdToken = await result.user.getIdToken();
-
-    // 💡 嘗試登入 (此時不傳 phoneNumber)
-    const res = await axios.post('http://localhost:8081/api/auth/social-login', {
-      idToken: currentIdToken,
-      name: result.user.displayName
-    });
-
-    if (res.data.code === '200') {
-      handleLoginSuccess(res.data); // 老用戶直接進入
-    } else if (res.data.code === '201') {
-      // 💡 新用戶：進入補填手機模式
-      isSocialMode.value = true;
-      isLoginMode.value = false;
-      regStep.value = 'START';
-      window.alert("👋 歡迎！請完成手機綁定以領取 $10,466.89");
-    }
-  } catch (err) { window.alert(type + " 授權失敗"); }
-};
-
-const handleLoginSuccess = (result) => {
-  const userData = result.data;
-  if (userData && userData.token) {
-    localStorage.setItem('token', userData.token);
-    window.alert(`🎉 成功！\n名稱: ${userData.name}\n餘額: $${userData.balance}`);
-    // router.push('/home');
-  }
-};
 </script>
+
+<style scoped>
+/* 樣式保持原樣，這部分沒問題 */
+.auth-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; }
+.auth-card { width: 100%; max-width: 420px; padding: 2.5rem; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); }
+.auth-header { text-align: center; margin-bottom: 2rem; }
+.form-group { margin-bottom: 1.2rem; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem; }
+input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; }
+.btn-primary { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+.social-divider { margin: 2rem 0; text-align: center; border-bottom: 1px solid #e2e8f0; position: relative; }
+.social-divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 15px; color: #94a3b8; font-size: 0.8rem; }
+.social-login-group { display: flex; flex-direction: column; gap: 12px; }
+.btn-social { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; background: white; border-radius: 10px; cursor: pointer; }
+.btn-social img { width: 20px; }
+.auth-footer { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: #64748b; }
+.register-link { color: #3b82f6; font-weight: bold; text-decoration: none; }
+</style>

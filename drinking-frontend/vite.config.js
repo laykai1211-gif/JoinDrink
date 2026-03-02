@@ -1,15 +1,17 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue' // 💡 這行是關鍵！
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [
-    vue() // 💡 告訴 Vite：看到 .vue 檔案請用這個插件處理
-  ],
+  plugins: [vue()],
   server: {
     port: 5173,
     strictPort: true,
     hmr: {
-      overlay: false // 💡 順便關閉錯誤遮罩，讓畫面清爽一點
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
+      // 💡 加上這個可以防止 WebSocket 頻繁斷線
+      clientPort: 5173
     }
   }
 })

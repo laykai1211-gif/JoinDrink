@@ -1,18 +1,20 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
-// 💡 這些資訊在你的 Firebase Console -> 專案設定 -> 一般 -> 你的應用程式
+import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth"; // 💡 1. 必須引入 getAuth
+
 const firebaseConfig = {
     apiKey: "AIzaSyCFQlAen8XIY0VTxzl0usNvz-FxO-gsRZM",
-    authDomain: "project-b5e05.firebaseapp.com", // 修正處
-    projectId: "project-b5e05",                  // 修正處
-    storageBucket: "project-b5e05.appspot.com",  // 修正處
+    authDomain: "project-b5e05.firebaseapp.com",
+    projectId: "project-b5e05",
+    storageBucket: "project-b5e05.firebasestorage.app",
     messagingSenderId: "302990497638",
     appId: "1:302990497638:web:4ad06a28fce00b5e5d5aa7",
+    measurementId: "G-EZ7MPPE8ZN"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
-// 第二步：才能使用初始化後的 app 來獲取服務
+// 💡 2. 必須建立並匯出 auth，這樣 Auth.vue 才拿得到它
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const facebookProvider = new FacebookAuthProvider();

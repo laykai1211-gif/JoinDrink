@@ -8,6 +8,7 @@ import com.example.demo.repository.PasswordResetTokenRepository;
 import com.example.demo.repository.StoresRepository;
 import com.example.demo.repository.UsersRepository;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -42,6 +43,9 @@ public class AuthService {
 
     @Value("${app.reset_password_url}")
     private String resetPasswordUrl;
+
+    @Value("${app.sms.mode}")
+    private String smsMode;
 
     @Autowired
     private UsersRepository usersRepository;
@@ -97,36 +101,42 @@ public class AuthService {
         System.out.println("=".repeat(50) + "\n");
     }
 
-    /**
-     * 第二階段：驗證 Token 並執行密碼更新
-     * 💡 包含「三方帳號自動升級」邏輯
-     */
     @Transactional
-    public void completeResetPassword(String token, String newPassword) {
-        // 1. 驗證 Token 是否存在且有效
-        PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new CustomException("400", "連結無效或已過期"));
+    public void resetPasswordWithFirebase(String idToken, String phoneNumber, String newPassword) throws Exception {
+        String verifiedPhone;
 
-        if (resetToken.isExpired()) {
-            tokenRepository.delete(resetToken);
-            throw new CustomException("400", "連結已過期，請重新申請");
+        // 💡 支援一鍵切換邏輯 (與註冊相同)
+        if ("mock".equalsIgnoreCase(smsMode)) {
+            log.info("--- [忘記密碼] 目前為模擬模式 ---");
+            if (!"MOCK_TOKEN".equals(idToken)) {
+                throw new CustomException("400", "模擬模式下請使用 MOCK_TOKEN");
+            }
+            verifiedPhone = phoneNumber; // 模擬模式直接信任傳入的號碼
+        } else {
+            log.info("--- [忘記密碼] 目前為真實模式，連線 Firebase ---");
+            try {
+                // 驗證 Token 並取得真實手機號碼
+                FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+                verifiedPhone = (String) decodedToken.getClaims().get("phone_number");
+
+                // 安全檢查：確保 Token 裡的手機號碼跟使用者輸入的一致
+                if (verifiedPhone == null || !verifiedPhone.contains(phoneNumber.substring(1))) {
+                    throw new CustomException("401", "驗證的手機號碼與輸入不符！");
+                }
+            } catch (Exception e) {
+                throw new CustomException("401", "Firebase 驗證失敗: " + e.getMessage());
+            }
         }
 
-        // 2. 找到對應使用者
-        Users user = usersRepository.findByPhoneNumber(resetToken.getPhoneNumber())
-                .orElseThrow(() -> new CustomException("404", "找不到此號碼關聯的帳號"));
+        // 💡 找尋使用者並更新密碼
+        Users user = usersRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new CustomException("404", "找不到此手機號碼註冊的帳號"));
 
-        // 3. 靜默升級：如果是三方用戶（本來沒密碼），這步會幫他補齊密碼
-        if (user.getPassword() == null) {
-            log.info("帳號 {} 通過簡訊驗證補齊密碼，升級為雙登入模式", user.getPhoneNumber());
-        }
-
-        // 4. 加密並更新密碼
+        // 將新密碼加密後存入
         user.setPassword(passwordEncoder.encode(newPassword));
         usersRepository.save(user);
 
-        // 5. 銷毀已使用的一次性 Token
-        tokenRepository.delete(resetToken);
+        log.info("手機號碼 {} 密碼修改成功！", phoneNumber);
     }
 
 
@@ -136,23 +146,53 @@ public class AuthService {
 
     @Transactional
     public void customerRegister(ClassicAuthRequest req) throws Exception {
+        // 1. 基本檢查：號碼是否重複
         if (usersRepository.findByPhoneNumber(req.getPhoneNumber()).isPresent()) {
-            throw new CustomException("400", "此號碼已註冊過，請直接登入");
+            throw new CustomException("400", "此號碼已註冊過");
         }
 
-        String uid = "MOCK_TOKEN".equals(req.getIdToken())
-                ? "MOCK_UID_" + req.getPhoneNumber()
-                : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
+        String uid;
 
+        if ("mock".equalsIgnoreCase(smsMode)) {
+            log.info("--- 運作模式：MOCK ---");
+            // 模擬模式邏輯保持不變...
+            uid = "MOCK_UID_" + req.getPhoneNumber();
+        } else {
+            log.info("--- 運作模式：REAL (Firebase Admin SDK) ---");
+            try {
+                // 💡 1. 驗證 Token (無論是白名單還是真簡訊，Firebase 都會回傳合法 Token)
+                FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(req.getIdToken());
+                uid = decodedToken.getUid();
+
+                // 💡 2. 獲取 Firebase 驗證過的手機號碼 (例如 +886912345678)
+                String verifiedPhone = (String) decodedToken.getClaims().get("phone_number");
+                log.info("Firebase 驗證的手機號碼: {}", verifiedPhone);
+
+                // 💡 3. 強健的比對邏輯：移除所有非數字字元後比對結尾
+                if (verifiedPhone == null) {
+                    throw new CustomException("401", "Firebase Token 未包含手機資訊");
+                }
+
+                String cleanVerified = verifiedPhone.replaceAll("[^0-9]", ""); // 變成 886912345678
+                String cleanInput = req.getPhoneNumber().replaceAll("[^0-9]", ""); // 變成 0912345678
+
+                // 檢查輸入的手機號碼（後 9 碼）是否符合 Firebase 驗證的號碼
+                if (!cleanVerified.endsWith(cleanInput.substring(cleanInput.length() - 9))) {
+                    throw new CustomException("401", "驗證手機 (" + verifiedPhone + ") 與註冊手機不符");
+                }
+
+            } catch (FirebaseAuthException e) {
+                log.error("Firebase 驗證異常: ", e);
+                throw new CustomException("401", "身份驗證無效，請重新獲取驗證碼");
+            }
+        }
+
+        // 儲存邏輯保持不變...
         Users newUser = new Users();
         newUser.setFirebaseUid(uid);
         newUser.setPhoneNumber(req.getPhoneNumber());
         newUser.setName(req.getName());
         newUser.setPassword(passwordEncoder.encode(req.getPassword()));
-        newUser.setRole("BUYER");
-        newUser.setBalance(new BigDecimal("10000.00"));
-        newUser.setCreatedAt(LocalDateTime.now());
-
         usersRepository.save(newUser);
     }
 
