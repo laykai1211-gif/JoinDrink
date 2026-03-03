@@ -4,7 +4,7 @@ import com.example.demo.common.JwtUtils;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
-import com.example.demo.enity.*;
+import com.example.demo.entity.*;
 import com.example.demo.exception.CustomException;
 import com.example.demo.repository.StoresRepository;
 import com.example.demo.repository.UsersRepository;
@@ -167,6 +167,7 @@ public class AuthService {
             throw new CustomException("403", "此帳號是以三方登入建立，請使用 Google 登入或點擊忘記密碼設定密碼");
         }
 
+
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new CustomException("401", "密碼錯誤");
         }
@@ -177,7 +178,7 @@ public class AuthService {
     public Result socialLogin(SocialAuthRequest req) throws Exception {
         // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
-                ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
+                    ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
                 : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
 
         Optional<Users> userOpt = usersRepository.findByFirebaseUid(uid);
@@ -226,6 +227,7 @@ public class AuthService {
         data.put("balance", user.getBalance());
         data.put("storeStatus", storeStatus);
         data.put("userId", user.getId());
+        data.put("role",user.getRole());
         return data;
     }
 
@@ -278,7 +280,7 @@ public class AuthService {
         // 這樣他下次登入時，前端或後端權限控管才能識別他是賣家
         Users user = store.getUser();
         if (user != null) {
-            user.setRole("MERCHANT");
+            user.setRole("STORES");
             usersRepository.save(user);
         }
 

@@ -1,10 +1,14 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
+import com.example.demo.dto.MenuItemBatchRequest;
 import com.example.demo.dto.StoresRequest;
 import com.example.demo.service.StoresService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/stores")
@@ -25,4 +29,11 @@ public class StoresController {
         storesService.updateStoreImage(req);
         return Result.success("店家資訊更新成功");
     }
+//更新店家飲料菜單
+@PostMapping("/batch-save")
+public Result batchSave(@RequestAttribute("currentUserId") Long userId,
+                        @RequestBody MenuItemBatchRequest request) {
+    storesService.saveUrls(userId, request.getItems());
+    return Result.success("品項已成功儲存！");
+}
 }

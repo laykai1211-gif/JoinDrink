@@ -1,0 +1,47 @@
+real模式
+
+PUT
+改密碼從Resetpassword.vue 輸入
+postman idToken從前端console獲取
+{
+    "idToken": " ",
+    "phoneNumber": "0910522851",
+    "newPassword": "123"
+}
+要白名單+後台要有此電話資訊
+
+POST
+註冊
+在前端註冊
+要白名單
+
+
+POST
+傳統登入
+不用白名單
+{
+  "phoneNumber": "0911111112",
+  "password": "123"
+}
+
+POST
+三方登入
+不需白名單
+按下按鈕
+
+postman
+{
+    "idToken": "按完按鈕在資訊Auth.vue,貼上來",
+    "phoneNumber": "0912345678",
+    "name": "測試人員"
+}
+
+
+mock模式
+註冊idToken 用"idToken":"MOCK_TOKEN"
+{
+  "phoneNumber": "0987654321",
+  "password": "123",
+  "name": "王小明",
+  "idToken":"MOCK_TOKEN"
+}

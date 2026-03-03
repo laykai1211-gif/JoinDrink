@@ -1,14 +1,19 @@
 package com.example.demo.service;
 
 
+import com.example.demo.dto.MenuItemBatchRequest;
 import com.example.demo.dto.StoresRequest;
-import com.example.demo.enity.Stores;
+import com.example.demo.entity.MenuItems;
+import com.example.demo.entity.Stores;
 import com.example.demo.exception.CustomException;
+import com.example.demo.repository.MenuItemsRepository;
 import com.example.demo.repository.StoresRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @Slf4j
@@ -16,6 +21,9 @@ public class StoresService {
 
     @Autowired
     private StoresRepository storesRepository;
+
+    @Autowired
+    private MenuItemsRepository menuItemsRepository;
 
     // 1. 獲取店家並檢查是否存在
     public Stores getStoreById(Long id) {
@@ -42,5 +50,22 @@ public class StoresService {
 
         // 3. 儲存回 MySQL (address 欄位會維持原樣，不會被動到)
         storesRepository.save(existingStore);
+    }
+
+    @Transactional
+    public void saveUrls(Long userId, List<MenuItemBatchRequest.ItemDetail> items) {
+        Stores store = storesRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException("404", "店家不存在"));
+
+        List<MenuItems> entities = items.stream().map(dto -> {
+            MenuItems entity = new MenuItems();
+            entity.setStores(store);
+            entity.setName(dto.getName());
+            entity.setImageUrl(dto.getImageUrl());
+            entity.setIsAvailable(true);
+            return entity;
+        }).toList();
+
+        menuItemsRepository.saveAll(entities);
     }
 }

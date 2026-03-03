@@ -17,6 +17,8 @@ public class Result {
         return result;
     }
 
+
+
     public static Result success(Object data) {
         Result result = success();
         result.setData(data);

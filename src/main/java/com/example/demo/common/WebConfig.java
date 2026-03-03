@@ -23,11 +23,13 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/**")
+                .addPathPatterns("/api/**") //攔截所有 API
+                // 💡 精確排除不需要 Token 的接口，不要用 /api/auth/**
                 .excludePathPatterns(
-                        "/api/auth/**",           // 💡 建議直接排除所有 auth 下的 API
-                        "/api/stores/update",     // 💡 暫時排除店家更新，方便測試
-                        "/api/stores/**"          // 💡 或者直接放行所有店家相關 API
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/social-login",
+                        "/api/auth/reset-password"
                 );
     }
 }

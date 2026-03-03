@@ -14,26 +14,37 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // 1. 放行 OPTIONS 預檢請求
         if (request.getMethod().equals("OPTIONS")) return true;
-
-        // 2. 💡 關鍵修正：放行所有 /api/auth/ 開頭的請求
+        System.out.println(">>> 進入攔截器，路徑：" + request.getRequestURI());
         String path = request.getRequestURI();
-        if (path.startsWith("/api/auth/")) {
+
+        // 💡 1. 只放行不需要登入的「白名單」
+        // 登入、三方登入、註冊不需要 Token，其他的（如 apply-store）需要
+        if (path.equals("/api/auth/login") ||
+                path.equals("/api/auth/social-login") ||
+                path.equals("/api/auth/register")) {
             return true;
         }
 
-        // 3. 剩下的請求（例如 /api/order, /api/user/profile）才檢查 Token
-        String token = request.getHeader("token");
+        // 💡 2. 統一從 Authorization 拿 Token (相容性最強)
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7); // 去除 "Bearer " 前綴
+        } else {
+            // 如果你還是想用自定義的 "token" header 作為備案
+            token = request.getHeader("token");
+        }
+
         if (token == null || token.isEmpty()) {
             throw new CustomException("401", "請先登入才能操作喔！");
         }
 
         try {
             Long userId = jwtUtils.getUserIdFromToken(token);
+            // 💡 3. 確保塞入屬性，Controller 才拿得到
             request.setAttribute("currentUserId", userId);
         } catch (Exception e) {
-            throw new CustomException("401", "Token 已過期或不合法，請重新登入");
+            throw new CustomException("401", "Token 無效，請重新登入");
         }
 
         return true;

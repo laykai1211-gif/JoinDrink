@@ -5,6 +5,12 @@ spring:
   security:
     user:
       name: none
+  servlet:
+    multipart:
+            # 單一檔案的大小限制 (例如：一張圖片最大 10MB)
+      max-file-size: 10MB
+            # 單次請求的總大小限制 (例如：一次上傳 5 張，總計不能超過 50MB)
+      max-request-size: 50MB
 
   datasource:
     # ... 保持原樣 (MySQL 設定) ...

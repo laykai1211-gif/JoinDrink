@@ -3,7 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
-import com.example.demo.enity.Stores;
+import com.example.demo.entity.Stores;
 import com.example.demo.exception.CustomException;
 import com.example.demo.service.AuthService;
 import jakarta.validation.Valid;
@@ -86,6 +86,9 @@ public class UsersController {
         return Result.success("申請成功，商店審核中！");
     }
 
+
+//    現在用接口去審核 要用被審核人的token 正確應該是管理員的
+//    但不設管理員，就直接從資料庫改store的身份跟user的狀態
     @PostMapping("/admin/approve-store/{userId}")
     public Result approveStore(@PathVariable Long userId) throws Exception {
         authService.approveStore(userId);
