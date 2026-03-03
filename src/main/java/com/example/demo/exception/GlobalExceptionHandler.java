@@ -10,33 +10,40 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-//   非預期錯誤（例如程式碼寫錯）
+    // 1. 非預期錯誤 (例如：NullPointerException, 資料庫斷線)
     @ExceptionHandler(Exception.class)
-    public Result error(Exception e){
-        e.printStackTrace();
-//        自訂回傳
-        return Result.error("500", "伺服器發生意外： "+ e.getMessage());
+    public ResponseEntity<Result> handleGeneralException(Exception e){
+        e.printStackTrace(); // 保留控制台 Log 方便工程師除錯
+
+        // 給前端看友善的訊息，不要洩漏底層代碼
+        return ResponseEntity.status(500).body(Result.error("500", "系統目前忙碌中，請稍後再試"));
     }
 
-
-//   預期中的業務錯誤（例如登入失敗）：
+    // 2. 預期的業務錯誤 (例如：號碼已註冊、Token 失效)
     @ExceptionHandler(CustomException.class)
-    public ResponseEntity<Result> error(CustomException e){
-        // 💡 這裡會印出控制台訊息
+    public ResponseEntity<Result> handleCustomException(CustomException e){
         System.out.println("🎯 偵測到邏輯錯誤: " + e.getMessage());
 
-        // 💡 關鍵：強制把 String code 轉成數字狀態碼 (如 401)
-        int status = Integer.parseInt(e.getCode());
+        int status;
+        try {
+            // 防禦性寫法：如果 code 不是數字，則預設回傳 400
+            status = Integer.parseInt(e.getCode());
+        } catch (NumberFormatException nfe) {
+            status = 400;
+        }
 
-        // 💡 回傳 ResponseEntity，這會讓瀏覽器的 Network 變成「紅色」
-        // 前端的 Axios 看到紅色，才會乖乖跑進 .catch()
+        // 確保 status 在合法的 HTTP 範圍內
+        if (status < 100 || status > 599) status = 400;
+
         return ResponseEntity.status(status).body(Result.error(e.getCode(), e.getMessage()));
     }
 
-    //密碼規則 攔截
+    // 3. JSR303 驗證錯誤 (例如：@NotBlank, @Size 失敗)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result handleValidationException(MethodArgumentNotValidException e) {
+    public ResponseEntity<Result> handleValidationException(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();
-        return Result.error(message);
+
+        // 💡 關鍵：參數驗證失敗，通常回傳 400 Bad Request
+        return ResponseEntity.status(400).body(Result.error("400", message));
     }
 }

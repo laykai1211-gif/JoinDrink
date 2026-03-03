@@ -1,8 +1,8 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
-import com.example.demo.enity.ClassicAuthRequest;
-import com.example.demo.enity.SocialAuthRequest;
+import com.example.demo.dto.ClassicAuthRequest;
+import com.example.demo.dto.SocialAuthRequest;
 import com.example.demo.enity.Stores;
 import com.example.demo.exception.CustomException;
 import com.example.demo.service.AuthService;
@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173") // 💡 必須加上這行
 public class UsersController {
 
     @Autowired

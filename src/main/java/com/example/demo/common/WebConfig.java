@@ -14,20 +14,20 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5174") // 💡
+                .allowedOrigins("http://localhost:5173")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                        "/api/auth/login",
-                        "/api/auth/register",
-                        "/api/auth/social-login",
-                        "/api/auth/check-phone"// 💡 補上這行，預檢電話才不會被擋！
+                        "/api/auth/**",           // 💡 建議直接排除所有 auth 下的 API
+                        "/api/stores/update",     // 💡 暫時排除店家更新，方便測試
+                        "/api/stores/**"          // 💡 或者直接放行所有店家相關 API
                 );
     }
 }

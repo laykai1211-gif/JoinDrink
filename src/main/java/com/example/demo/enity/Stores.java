@@ -25,7 +25,8 @@ public class Stores {
     @Column(nullable = false, length = 100)
     private String name; // 店名
 
-    private String imageUrl; // 商店頭像/封面圖
+    @Column(name = "image_url")
+    private String imageUrl; // 👈 存 Cloudinary 的網址
 
     @Column(nullable = false)
     private String address; // 商店地址

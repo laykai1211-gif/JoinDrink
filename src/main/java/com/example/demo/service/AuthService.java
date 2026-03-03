@@ -2,44 +2,40 @@ package com.example.demo.service;
 
 import com.example.demo.common.JwtUtils;
 import com.example.demo.common.Result;
+import com.example.demo.dto.ClassicAuthRequest;
+import com.example.demo.dto.SocialAuthRequest;
 import com.example.demo.enity.*;
 import com.example.demo.exception.CustomException;
-import com.example.demo.repository.PasswordResetTokenRepository;
 import com.example.demo.repository.StoresRepository;
 import com.example.demo.repository.UsersRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Service
 public class AuthService {
 
     // 💡 讀取 application.yml 配置
-    @Value("${twilio.account_sid}")
-    private String accountSid;
-
-    @Value("${twilio.auth_token}")
-    private String authToken;
-
-    @Value("${twilio.from_number}")
-    private String fromNumber;
+//    @Value("${twilio.account_sid}")
+//    private String accountSid;
+//
+//    @Value("${twilio.auth_token}")
+//    private String authToken;
+//
+//    @Value("${twilio.from_number}")
+//    private String fromNumber;
 
     @Value("${app.reset_password_url}")
     private String resetPasswordUrl;
@@ -59,39 +55,6 @@ public class AuthService {
     @Autowired
     private StoresRepository storesRepository;
 
-    @Autowired
-    private PasswordResetTokenRepository tokenRepository;
-
-    // ============================================================
-    // 1. 忘記密碼與重設邏輯 (高資安模式)
-    // ============================================================
-
-    @Transactional
-    public void sendResetSmsLink(String phone) {
-        // 1. 內部檢查使用者是否存在 (高資安：不對外報錯)
-        Optional<Users> userOpt = usersRepository.findByPhoneNumber(phone);
-
-        if (userOpt.isPresent()) {
-            // 2. 刪除該號碼舊有的 Token
-            tokenRepository.deleteByPhoneNumber(phone);
-
-            // 3. 生成 15 分鐘有效的 Token
-            String token = UUID.randomUUID().toString();
-            PasswordResetToken resetToken = new PasswordResetToken();
-            resetToken.setToken(token);
-            resetToken.setPhoneNumber(phone);
-            resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
-            tokenRepository.save(resetToken);
-
-            // 4. 構造網址 (這會印在你的 Console)
-            String fullUrl = resetPasswordUrl + "?token=" + token;
-            String messageBody = "【我的App】重設密碼連結（15分鐘內有效）：" + fullUrl;
-
-            // 5. 呼叫模擬發送 (印出 Log)
-            sendActualSms(phone, messageBody);
-        }
-        log.info("已處理手機號碼 {} 的重設請求 (模擬模式)", phone);
-    }
 
     // 💡 模擬發送方法
     private void sendActualSms(String to, String body) {
@@ -211,30 +174,38 @@ public class AuthService {
         return generateLoginResponse(user);
     }
 
-    @Transactional
     public Result socialLogin(SocialAuthRequest req) throws Exception {
+        // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
                 ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
                 : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
 
         Optional<Users> userOpt = usersRepository.findByFirebaseUid(uid);
+
+        // 2. 如果用戶已存在，直接登入
         if (userOpt.isPresent()) {
             return Result.success(generateLoginResponse(userOpt.get()));
         }
 
+        // 3. 如果是新用戶且沒傳手機，回傳 201 讓前端跳出輸入框
         if (req.getPhoneNumber() == null || req.getPhoneNumber().isEmpty()) {
             return Result.error("201", "首次登入，請綁定手機", Map.of("firebaseUid", uid));
         }
 
+        // 💡 4. 手動補上原本 DTO 的校驗邏輯 (安全性檢查)
+        if (!req.getPhoneNumber().matches("^09\\d{8}$")) {
+            throw new CustomException("400", "手機號碼格式錯誤");
+        }
+
+        // 5. 檢查手機是否重複 (這部分原本的也很好)
         if (usersRepository.existsByPhoneNumber(req.getPhoneNumber())) {
             throw new CustomException("409", "此手機已被佔用，請更換號碼");
         }
-
         Users newUser = new Users();
         newUser.setFirebaseUid(uid);
         newUser.setPhoneNumber(req.getPhoneNumber());
         newUser.setName(req.getName() != null ? req.getName() : "新用戶");
-        newUser.setRole("BUYER");
+        newUser.setRole("USERS");
         newUser.setBalance(new BigDecimal("10000.00"));
         newUser.setCreatedAt(LocalDateTime.now());
 
@@ -315,31 +286,5 @@ public class AuthService {
         log.info("管理員已核准用戶 ID: {} 的開店申請，身分已變更為賣家", userId);
     }
 
-    /**
-     * 檢查重設密碼 Token 是否有效
-     * @param token 前端從 URL 抓到的 UUID
-     * @return true 代表 Token 存在且未過期
-     */
-    public boolean isResetTokenValid(String token) {
-        // 1. 嘗試從資料庫找出這筆 Token
-        Optional<PasswordResetToken> tokenOpt = tokenRepository.findByToken(token);
 
-        if (tokenOpt.isEmpty()) {
-            log.warn("🔍 Token 驗證失敗：資料庫找不到此 Token [{}]", token);
-            return false;
-        }
-
-        PasswordResetToken resetToken = tokenOpt.get();
-
-        // 2. 檢查是否已超過 expiryDate
-        if (resetToken.isExpired()) {
-            log.warn("⏰ Token 驗證失敗：此 Token 已於 {} 過期", resetToken.getExpiryDate());
-            // (選配) 發現過期了就順手刪掉，保持資料庫乾淨
-            tokenRepository.delete(resetToken);
-            return false;
-        }
-
-        log.info("✅ Token 驗證成功：手機號碼 {} 的重設連結仍有效", resetToken.getPhoneNumber());
-        return true;
-    }
 }

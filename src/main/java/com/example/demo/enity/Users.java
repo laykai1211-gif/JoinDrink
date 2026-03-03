@@ -24,6 +24,9 @@ public class Users {
 
     private String name;
 
+    private String avatar;
+
+
     /**
      * 角色：預設均為 "USERS"
      * 如果你有管理後台需求，可以手動改為 "ADMIN"

@@ -23,7 +23,7 @@
         </div>
         <div class="form-group">
           <label>用戶姓名</label>
-          <input v-model="username" type="text" placeholder="請輸入您的姓名" />
+          <input v-model="name" type="text" placeholder="請輸入您的姓名" />
         </div>
         <div class="form-group">
           <label>設定密碼</label>
@@ -51,7 +51,7 @@ import axios from 'axios';
 const router = useRouter();
 const phoneNumber = ref('');
 const otpCode = ref('');
-const username = ref('');
+const name = ref('');
 const password = ref('');
 
 const otpSent = ref(false);
@@ -71,41 +71,37 @@ const initRecaptcha = () => {
 
 // Register.vue 或 ResetPassword.vue 中的發送邏輯
 const handleSendSms = async () => {
-  if (!phoneNumber.value) return alert("請輸入手機號碼");
-
-  // 💡 1. 確保容器是乾淨的，避免 "Already rendered"
-  const container = document.getElementById('recaptcha-container');
-  if (container) container.innerHTML = '';
-
-  // 💡 2. 每次發送前清理舊的驗證器
-  if (window.recaptchaVerifier) {
-    window.recaptchaVerifier.clear();
-  }
-
   try {
-    // 💡 3. 初始化新的驗證器
+    // 清理舊的
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+    }
+
+    // 初始化
     window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       'size': 'invisible'
     });
 
-    isSending.value = true;
-    const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');
+    // 💡 關鍵：手動 render
+    const widgetId = await window.recaptchaVerifier.render();
 
-    // 💡 4. 發送簡訊
-    confirmationResult.value = await signInWithPhoneNumber(auth, formatPhone, window.recaptchaVerifier);
+    const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');
+    console.log("發送至號碼:", formatPhone);
+
+    const result = await signInWithPhoneNumber(auth, formatPhone, window.recaptchaVerifier);
+    confirmationResult.value = result;
     otpSent.value = true;
-    alert("驗證碼已發送");
+    alert("驗證碼已發送！");
+
   } catch (err) {
-    console.error("發送失敗:", err);
-    alert("發送失敗: " + err.message); // 會在這裡看到 invalid-app-credential
-    if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
-  } finally {
-    isSending.value = false;
+    console.error("SMS 錯誤詳情:", err);
+    // 如果還是報 invalid-app-credential，代表 Firebase 伺服器拒絕了這個請求
+    alert("發送失敗: " + err.code);
   }
 };
 
 const handleRegister = async () => {
-  if (!otpCode.value || !username.value || !password.value) return alert("請填寫完整註冊資料");
+  if (!otpCode.value || !name.value || !password.value) return alert("請填寫完整註冊資料");
 
   isSubmitting.value = true;
   try {
@@ -117,14 +113,16 @@ const handleRegister = async () => {
     const res = await axios.post('http://localhost:8081/api/auth/register', {
       idToken,
       phoneNumber: phoneNumber.value,
-      username: username.value,
+      name: name.value,
       password: password.value
     });
 
     if (res.data.code === "200" || res.data.code === 200) {
       alert("註冊成功！");
       router.push('/');
-    } else {
+    } else if(res.data.code === "400" || res.data.code === 400) {
+      alert("此號碼已註冊過" );
+    }else {
       alert("❌ " + res.data.msg);
     }
   } catch (err) {

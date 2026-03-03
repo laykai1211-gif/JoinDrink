@@ -37,6 +37,7 @@ public class SecurityConfig {
                 // 4. 設定權限控管
                 .authorizeHttpRequests(auth -> auth
                         // 💡 確保 /api/auth/ 下的所有路徑（包括重設密碼）都對外公開
+                        .requestMatchers("/api/stores/**").permitAll() // 👈 確保這行有加，讓店家功能開放
                         .requestMatchers("/api/auth/**").permitAll()
                         // 其他所有請求都需要驗證 (如果之後有加 JWT Filter)
                         .anyRequest().authenticated()
@@ -50,7 +51,8 @@ public class SecurityConfig {
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:5173")); // Vue 預設埠
+        // ❌ 絕對不能寫 config.addAllowedOrigin("*");
+        config.setAllowedOriginPatterns(List.of("http://localhost:5173")); // ✅ 改用這個
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
 
