@@ -186,6 +186,12 @@ const handleLogin = async () => {
   try {
     const response = await axios.post('http://localhost:8081/api/auth/login', loginForm);
     if (response.data.code === "200") {
+      const { token, name, role, userId, storeStatus } = response.data.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('name', name);
+      localStorage.setItem('role', role);
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('storeStatus', storeStatus);
       alert("✅ 登入成功！");
       router.push('/dashboard');
     } else {
