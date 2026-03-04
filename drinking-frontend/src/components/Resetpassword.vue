@@ -84,7 +84,7 @@ const handleSendSms = async () => {
 
     // 重新建立驗證器
     window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible'
+      'size': 'normal'
     });
 
     const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');

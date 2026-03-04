@@ -175,6 +175,7 @@ public class AuthService {
         return generateLoginResponse(user);
     }
 
+    @Transactional
     public Result socialLogin(SocialAuthRequest req) throws Exception {
         // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
@@ -218,7 +219,7 @@ public class AuthService {
     // ============================================================
 
     private Map<String, Object> generateLoginResponse(Users user) {
-        String token = jwtUtils.generateToken(user.getId(), user.getPhoneNumber());
+        String token = jwtUtils.generateToken(user.getId(), user.getRole(),user.getPhoneNumber());
         String storeStatus = (user.getStore() != null) ? user.getStore().getStatus() : "NONE";
 
         Map<String, Object> data = new HashMap<>();
@@ -276,7 +277,7 @@ public class AuthService {
         // 2. 更新商店狀態
         store.setStatus("APPROVED");
 
-        // 3. 提升使用者角色 (從 BUYER 變成 MERCHANT)
+        // 3. 提升使用者角色 (從 BUYER 變成 STORES)
         // 這樣他下次登入時，前端或後端權限控管才能識別他是賣家
         Users user = store.getUser();
         if (user != null) {

@@ -11,6 +11,6 @@ public class MenuItemBatchRequest {
     @Data
     public static class ItemDetail {
         private String name;
-        private String imageUrl; // 💡 已經是 Cloudinary 的網址了
+        private String imageUrl; // 💡  Cloudinary 網址
     }
 }

@@ -2,17 +2,22 @@ package com.example.demo.common;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.util.Date;
 
 @Component
 public class JwtUtils {
-    private String secret = "ThisIsASuperLongSecretKeyForDrinkingApp2026ThatMustBeAtLeast64CharactersLongToSatisfyHS512Requirements!"; // 密鑰
-    private long expiration = 86400000; // 24小時有效
+    @Value("${jwt.secret}")
+    private String secret;
 
-    public String generateToken(Long userId,String phoneNumber) {
+    @Value("${jwt.expiration}")
+    private long expiration;
+
+    public String generateToken(Long userId,String role,String phoneNumber) {
         return Jwts.builder()
                 .claim("userId", userId) // 💡 存入 User ID
+                .claim("role",role ) // 💡 存入 User ID
                 .setSubject(phoneNumber)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
@@ -27,6 +32,14 @@ public class JwtUtils {
                 .parseClaimsJws(token)
                 .getBody()
                 .get("userId", Long.class);
+    }
+
+    public String getRoleFromToken(String token) {
+        return Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody()
+                .get("role", String.class);
     }
 
 

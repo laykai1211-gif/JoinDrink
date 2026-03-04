@@ -79,7 +79,7 @@ const handleSendSms = async () => {
 
     // 初始化
     window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible'
+      'size': 'normal'
     });
 
     // 💡 關鍵：手動 render

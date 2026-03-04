@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5173,
+    allowedHosts: [
+      'karan-nonsequacious-karina.ngrok-free.dev'
+    ],
     strictPort: true,
     hmr: {
       protocol: 'ws',

@@ -2,6 +2,9 @@ package com.example.demo.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -18,6 +21,8 @@ public class Stores {
      * JoinColumn(name = "user_id")：在 stores 表中建立一個名為 user_id 的外鍵。
      * 每個使用者只能擁有一間商店。
      */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
     private Users user;
