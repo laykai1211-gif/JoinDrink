@@ -4,6 +4,7 @@ import com.example.demo.common.JwtUtils;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
+import com.example.demo.dto.UsersProfile;
 import com.example.demo.entity.*;
 import com.example.demo.exception.CustomException;
 import com.example.demo.repository.StoresRepository;
@@ -26,16 +27,6 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class AuthService {
-
-    // 💡 讀取 application.yml 配置
-//    @Value("${twilio.account_sid}")
-//    private String accountSid;
-//
-//    @Value("${twilio.auth_token}")
-//    private String authToken;
-//
-//    @Value("${twilio.from_number}")
-//    private String fromNumber;
 
     @Value("${app.reset_password_url}")
     private String resetPasswordUrl;
@@ -293,4 +284,11 @@ public class AuthService {
     }
 
 
+    public void update(UsersProfile req) {
+        Optional<Users> existUser = usersRepository.findByPhoneNumber(req.getPhoneNumber());
+        if (existUser.isPresent() && !existUser.get().)
+        req.setAvatar(req.getAvatar());
+
+        usersRepository.save();
+    }
 }

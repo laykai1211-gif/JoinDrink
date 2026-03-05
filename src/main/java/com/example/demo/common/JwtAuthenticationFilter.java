@@ -24,7 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-
+//檢查有沒有token ,有token去security查看api訪問權限
         // 1. 取得 Header 裡的 Token
         String authHeader = request.getHeader("Authorization");
         String token = null;

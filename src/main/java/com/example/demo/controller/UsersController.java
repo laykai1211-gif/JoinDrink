@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
+import com.example.demo.dto.UsersProfile;
 import com.example.demo.entity.Stores;
 import com.example.demo.exception.CustomException;
 import com.example.demo.service.AuthService;
@@ -28,6 +29,8 @@ public class UsersController {
         return Result.success("註冊成功！歡迎來到電商平台");
     }
 
+
+
     @PostMapping("/login")
     public Result login(@Valid @RequestBody ClassicAuthRequest req) throws Exception {
         Map<String, Object> data = authService.customerLogin(req);
@@ -38,6 +41,13 @@ public class UsersController {
     public Result socialLogin(@Valid @RequestBody SocialAuthRequest req) throws Exception {
         return authService.socialLogin(req);
     }
+
+    @PutMapping("/update")
+    public Result update (@RequestBody UsersProfile req){
+        authService.update(req);
+        return Result.success();
+    }
+
 
     // ======== 2. 帳號檢查與 Firebase 密碼重設 ========
 

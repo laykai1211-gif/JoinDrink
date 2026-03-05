@@ -4,6 +4,14 @@
       <h2>手機號碼註冊</h2>
       <p class="subtitle">建立新帳號以開始使用</p>
 
+      <!-- 💡 模式切換開關 -->
+      <div class="mode-switch">
+        <label>
+          <input type="checkbox" v-model="isMockMode" />
+          Mock 模式（不發真實簡訊）
+        </label>
+      </div>
+
       <div class="form-group">
         <label>手機號碼</label>
         <div class="input-row">
@@ -18,7 +26,7 @@
 
       <div v-if="otpSent" class="slide-in">
         <div class="form-group">
-          <label>簡訊驗證碼</label>
+          <label>簡訊驗證碼{{ isMockMode ? "（Mock 模式：輸入任意 6 碼）" : "" }}</label>
           <input v-model="otpCode" type="text" placeholder="6 位數驗證碼" maxlength="6" />
         </div>
         <div class="form-group">
@@ -53,63 +61,58 @@ const phoneNumber = ref('');
 const otpCode = ref('');
 const name = ref('');
 const password = ref('');
-
 const otpSent = ref(false);
 const isSending = ref(false);
 const isSubmitting = ref(false);
 const confirmationResult = ref(null);
+const isMockMode = ref(true); // 💡 預設 Mock 模式，切換成 false 就打真實簡訊
 
-// 初始化 reCAPTCHA
-const initRecaptcha = () => {
-  if (window.recaptchaVerifier) {
-    window.recaptchaVerifier.clear();
-  }
-  window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-    'size': 'invisible'
-  });
-};
-
-// Register.vue 或 ResetPassword.vue 中的發送邏輯
 const handleSendSms = async () => {
+  if (!phoneNumber.value || phoneNumber.value.length < 10) return alert("請輸入正確的手機號碼");
+  isSending.value = true;
+
   try {
-    // 清理舊的
-    if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
+    if (isMockMode.value) {
+      // ✅ Mock 模式：直接跳過 Firebase
+      otpSent.value = true;
+      alert("【Mock 模式】驗證碼已模擬發送！請輸入任意 6 碼繼續");
+    } else {
+      // ✅ 真實模式：打 Firebase 簡訊
+      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
+
+      const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');
+      console.log("發送至號碼:", formatPhone);
+
+      const result = await signInWithPhoneNumber(auth, formatPhone, window.recaptchaVerifier);
+      confirmationResult.value = result;
+      otpSent.value = true;
+      alert("驗證碼已發送！");
     }
-
-    // 初始化
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'normal'
-    });
-
-    // 💡 關鍵：手動 render
-    const widgetId = await window.recaptchaVerifier.render();
-
-    const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');
-    console.log("發送至號碼:", formatPhone);
-
-    const result = await signInWithPhoneNumber(auth, formatPhone, window.recaptchaVerifier);
-    confirmationResult.value = result;
-    otpSent.value = true;
-    alert("驗證碼已發送！");
-
   } catch (err) {
     console.error("SMS 錯誤詳情:", err);
-    // 如果還是報 invalid-app-credential，代表 Firebase 伺服器拒絕了這個請求
     alert("發送失敗: " + err.code);
+  } finally {
+    isSending.value = false;
   }
 };
 
 const handleRegister = async () => {
   if (!otpCode.value || !name.value || !password.value) return alert("請填寫完整註冊資料");
-
   isSubmitting.value = true;
-  try {
-    // 1. 驗證簡訊碼並取得 Firebase Token
-    const result = await confirmationResult.value.confirm(otpCode.value);
-    const idToken = await result.user.getIdToken();
 
-    // 2. 傳給後端 API
+  try {
+    let idToken;
+
+    if (isMockMode.value) {
+      // ✅ Mock 模式：直接用 MOCK_TOKEN
+      idToken = "MOCK_TOKEN";
+    } else {
+      // ✅ 真實模式：用 Firebase 驗證 OTP 取得 Token
+      const result = await confirmationResult.value.confirm(otpCode.value);
+      idToken = await result.user.getIdToken();
+    }
+
     const res = await axios.post('http://localhost:8081/api/auth/register', {
       idToken,
       phoneNumber: phoneNumber.value,
@@ -120,9 +123,9 @@ const handleRegister = async () => {
     if (res.data.code === "200" || res.data.code === 200) {
       alert("註冊成功！");
       router.push('/');
-    } else if(res.data.code === "400" || res.data.code === 400) {
-      alert("此號碼已註冊過" );
-    }else {
+    } else if (res.data.code === "400" || res.data.code === 400) {
+      alert("此號碼已註冊過");
+    } else {
       alert("❌ " + res.data.msg);
     }
   } catch (err) {
@@ -133,8 +136,20 @@ const handleRegister = async () => {
   }
 };
 
-// 離開頁面時清理
 onBeforeUnmount(() => {
   if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
 });
 </script>
+
+<style scoped>
+.mode-switch {
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #713f12;
+}
+.mode-switch input { margin-right: 6px; cursor: pointer; }
+</style>

@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         // 💡 權限檢查：現在這裡會正常運作了
-                        .requestMatchers("/api/stores/**").hasAnyAuthority("STORES", "ADMIN")
+                        .requestMatchers("/api/stores/**").hasAnyAuthority("STORES")
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
