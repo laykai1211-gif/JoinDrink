@@ -2,11 +2,10 @@ package com.example.demo.dto;
 
 import lombok.Data;
 
+// 建一個 UpdateUserRequest.java
 @Data
-public class UsersProfile {
+public class UpdateUserRequest {
     private String name;
-    private String firebaseUid ;
-    private String phoneNumber;
     private String avatar;
-
+    private String phoneNumber;
 }

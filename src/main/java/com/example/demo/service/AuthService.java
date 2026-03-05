@@ -4,10 +4,12 @@ import com.example.demo.common.JwtUtils;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
-import com.example.demo.dto.UsersProfile;
 import com.example.demo.entity.*;
 import com.example.demo.exception.CustomException;
 import com.example.demo.repository.StoresRepository;
+import com.example.demo.entity.UserAuthProvider;
+import com.example.demo.dto.UpdateUserRequest;
+import com.example.demo.repository.UsersAuthProviderRepository;
 import com.example.demo.repository.UsersRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -45,6 +48,9 @@ public class AuthService {
 
     @Autowired
     private StoresRepository storesRepository;
+
+    @Autowired
+    private UsersAuthProviderRepository authProviderRepository;
 
 
     // 💡 模擬發送方法
@@ -141,13 +147,19 @@ public class AuthService {
             }
         }
 
-        // 儲存邏輯保持不變...
+        // 儲存 User
         Users newUser = new Users();
-        newUser.setFirebaseUid(uid);
         newUser.setPhoneNumber(req.getPhoneNumber());
         newUser.setName(req.getName());
         newUser.setPassword(passwordEncoder.encode(req.getPassword()));
         usersRepository.save(newUser);
+
+        // 💡 存入登入方式紀錄
+        UserAuthProvider provider = new UserAuthProvider();
+        provider.setUser(newUser);
+        provider.setProvider("PHONE");
+        provider.setProviderUid(req.getPhoneNumber());
+        authProviderRepository.save(provider);
     }
 
     @Transactional
@@ -155,7 +167,7 @@ public class AuthService {
         Users user = usersRepository.findByPhoneNumber(req.getPhoneNumber())
                 .orElseThrow(() -> new CustomException("404", "帳號不存在"));
 
-        if (user.getPassword() == null && user.getFirebaseUid() != null) {
+        if (user.getPassword() == null) {
             throw new CustomException("403", "此帳號是以三方登入建立，請使用 Google 登入或點擊忘記密碼設定密碼");
         }
 
@@ -169,40 +181,55 @@ public class AuthService {
 
     public Result socialLogin(SocialAuthRequest req) throws Exception {
         // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
+        // 決定 provider 名稱 (google.com / facebook.com)
+        String providerName = (req.getIdToken() != null && req.getIdToken().contains("MOCK")) ? "GOOGLE" : "GOOGLE";
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
                 ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
                 : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
 
-        Optional<Users> userOpt = usersRepository.findByFirebaseUid(uid);
+        // 2. 用 providerUid 查是否已有綁定的帳號
+        Optional<UserAuthProvider> providerOpt = authProviderRepository.findByProviderAndProviderUid(providerName, uid);
 
-        // 2. 如果用戶已存在，直接登入
-        if (userOpt.isPresent()) {
-            return Result.success(generateLoginResponse(userOpt.get()));
+        if (providerOpt.isPresent()) {
+            // 已存在 → 直接登入
+            return Result.success(generateLoginResponse(providerOpt.get().getUser()));
         }
 
-        // 3. 如果是新用戶且沒傳手機，回傳 201 讓前端跳出輸入框
+        // 3. 新用戶沒傳手機 → 讓前端跳出輸入框
         if (req.getPhoneNumber() == null || req.getPhoneNumber().isEmpty()) {
-            return Result.error("201", "首次登入，請綁定手機", Map.of("firebaseUid", uid));
+            return Result.error("201", "首次登入，請綁定手機", Map.of("providerUid", uid, "provider", providerName));
         }
 
-        // 💡 4. 手動補上原本 DTO 的校驗邏輯 (安全性檢查)
+        // 4. 格式檢查
         if (!req.getPhoneNumber().matches("^09\\d{8}$")) {
             throw new CustomException("400", "手機號碼格式錯誤");
         }
 
-        // 5. 檢查手機是否重複 (這部分原本的也很好)
+        // 5. 檢查手機是否已有帳號 → 若有則直接綁定，不重複建 User
+        Users targetUser;
         if (usersRepository.existsByPhoneNumber(req.getPhoneNumber())) {
-            throw new CustomException("409", "此手機已被佔用，請更換號碼");
+            // 手機已有帳號 → 幫他綁定這個三方登入
+            targetUser = usersRepository.findByPhoneNumber(req.getPhoneNumber())
+                    .orElseThrow(() -> new CustomException("404", "帳號異常"));
+        } else {
+            // 全新用戶 → 建立帳號
+            targetUser = new Users();
+            targetUser.setPhoneNumber(req.getPhoneNumber());
+            targetUser.setName(req.getName() != null ? req.getName() : "新用戶");
+            targetUser.setRole("USERS");
+            targetUser.setBalance(new BigDecimal("10000.00"));
+            targetUser.setCreatedAt(LocalDateTime.now());
+            usersRepository.save(targetUser);
         }
-        Users newUser = new Users();
-        newUser.setFirebaseUid(uid);
-        newUser.setPhoneNumber(req.getPhoneNumber());
-        newUser.setName(req.getName() != null ? req.getName() : "新用戶");
-        newUser.setRole("USERS");
-        newUser.setBalance(new BigDecimal("10000.00"));
-        newUser.setCreatedAt(LocalDateTime.now());
 
-        return Result.success(generateLoginResponse(usersRepository.save(newUser)));
+        // 6. 存入新的 provider 紀錄
+        UserAuthProvider newProvider = new UserAuthProvider();
+        newProvider.setUser(targetUser);
+        newProvider.setProvider(providerName);
+        newProvider.setProviderUid(uid);
+        authProviderRepository.save(newProvider);
+
+        return Result.success(generateLoginResponse(targetUser));
     }
 
     // ============================================================
@@ -210,7 +237,7 @@ public class AuthService {
     // ============================================================
 
     private Map<String, Object> generateLoginResponse(Users user) {
-        String token = jwtUtils.generateToken(user.getId(), user.getRole(),user.getPhoneNumber());
+        String token = jwtUtils.generateToken(user.getId(), user.getRole(), user.getPhoneNumber());
         String storeStatus = (user.getStore() != null) ? user.getStore().getStatus() : "NONE";
 
         Long storeId = (user.getStore() != null) ? user.getStore().getId() : null;
@@ -283,12 +310,23 @@ public class AuthService {
         log.info("管理員已核准用戶 ID: {} 的開店申請，身分已變更為賣家", userId);
     }
 
+    @Transactional
+    public void update(Long currentUserId, UpdateUserRequest req) {
+        Users users = usersRepository.findById(currentUserId)
+                .orElseThrow(() -> new CustomException("400", "找不到此帳號"));
 
-    public void update(UsersProfile req) {
         Optional<Users> existUser = usersRepository.findByPhoneNumber(req.getPhoneNumber());
-        if (existUser.isPresent() && !existUser.get().)
-        req.setAvatar(req.getAvatar());
+        if (existUser.isPresent() && !existUser.get().getId().equals(currentUserId)) {
+            throw new CustomException("400", "電話重複");
+        }
 
-        usersRepository.save();
+        if (req.getAvatar() != null) users.setAvatar(req.getAvatar());
+        if (req.getPhoneNumber() != null) users.setPhoneNumber(req.getPhoneNumber());
+        if (req.getName() != null) users.setName(req.getName());
+
+
+        usersRepository.save(users);
     }
+
+
 }

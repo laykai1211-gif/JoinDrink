@@ -3,9 +3,9 @@ package com.example.demo.controller;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
-import com.example.demo.dto.UsersProfile;
 import com.example.demo.entity.Stores;
 import com.example.demo.exception.CustomException;
+import com.example.demo.dto.UpdateUserRequest;
 import com.example.demo.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,8 +43,10 @@ public class UsersController {
     }
 
     @PutMapping("/update")
-    public Result update (@RequestBody UsersProfile req){
-        authService.update(req);
+    public Result update (
+            @RequestAttribute("currentUserId") Long userId,
+            @RequestBody UpdateUserRequest req){
+        authService.update(userId,req);
         return Result.success();
     }
 

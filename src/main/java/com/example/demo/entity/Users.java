@@ -2,9 +2,6 @@ package com.example.demo.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -16,9 +13,6 @@ public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(unique = true)
-    private String firebaseUid;
 
     @Column(unique = true, nullable = false,name = "phone_number")
     private String phoneNumber;
@@ -54,12 +48,8 @@ public class Users {
      * cascade = CascadeType.ALL：當 User 被刪除或更新，對應的 Store 動作會連動。
      * fetch = FetchType.LAZY：懶加載，只有當你調用 getStore() 時才會去查 Stores 表，提升效率。
      */
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Stores store;
-//    @ToString.Exclude — 產生 toString() 時跳過這個欄位，斷開無窮遞迴
-//@EqualsAndHashCode.Exclude — 產生 equals() / hashCode() 時也跳過，避免同樣的問題出現在比較操作上
 }
 
 //    precision = 19：代表總位數（包含小數點前後）。在此設定下，該數值最多可以容納 19 個數字 [1, 3]。

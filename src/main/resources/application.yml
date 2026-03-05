@@ -31,7 +31,7 @@ firebase:
 app:
   reset_password_url: "http://localhost:5173/Resetpassword"
   sms:
-    mode: "real" # ✅ 設定為 real/mock 是正確的
+    mode: "mock" # ✅ 設定為 real/mock 是正確的
 
 jwt:
   secret: ThisIsASuperLongSecretKeyForDrinkingApp2026ThatMustBeAtLeast64CharactersLongToSatisfyHS512Requirements!

@@ -41,6 +41,7 @@ public class SecurityConfig {
                         // 💡 權限檢查：現在這裡會正常運作了
                         .requestMatchers("/api/stores/**").hasAnyAuthority("STORES")
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/").authenticated()
                         .anyRequest().authenticated()
                 )
                 // 💡 關鍵：把你的 JwtFilter 放在 Spring Security 原生檢查 Filter 之前
@@ -75,4 +76,6 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
+
 }
