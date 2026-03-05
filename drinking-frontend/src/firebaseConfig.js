@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth"; // 💡 1. 必須引入 getAuth
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCFQlAen8XIY0VTxzl0usNvz-FxO-gsRZM",
@@ -12,9 +11,6 @@ const firebaseConfig = {
     measurementId: "G-EZ7MPPE8ZN"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
-// 💡 2. 必須建立並匯出 auth，這樣 Auth.vue 才拿得到它
 export const auth = getAuth(app);

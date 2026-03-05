@@ -159,6 +159,7 @@ public class AuthService {
         usersRepository.save(newUser);
     }
 
+    @Transactional
     public Map<String, Object> customerLogin(ClassicAuthRequest req) {
         Users user = usersRepository.findByPhoneNumber(req.getPhoneNumber())
                 .orElseThrow(() -> new CustomException("404", "帳號不存在"));
@@ -175,11 +176,10 @@ public class AuthService {
         return generateLoginResponse(user);
     }
 
-    @Transactional
     public Result socialLogin(SocialAuthRequest req) throws Exception {
         // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
-                    ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
+                ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
                 : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
 
         Optional<Users> userOpt = usersRepository.findByFirebaseUid(uid);
@@ -222,13 +222,16 @@ public class AuthService {
         String token = jwtUtils.generateToken(user.getId(), user.getRole(),user.getPhoneNumber());
         String storeStatus = (user.getStore() != null) ? user.getStore().getStatus() : "NONE";
 
+        Long storeId = (user.getStore() != null) ? user.getStore().getId() : null;
+
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
         data.put("name", user.getName());
         data.put("balance", user.getBalance());
         data.put("storeStatus", storeStatus);
         data.put("userId", user.getId());
-        data.put("role",user.getRole());
+        data.put("role", user.getRole());
+        data.put("storeId", storeId); // 💡 有店才有值，沒店就是 null
         return data;
     }
 
@@ -277,7 +280,7 @@ public class AuthService {
         // 2. 更新商店狀態
         store.setStatus("APPROVED");
 
-        // 3. 提升使用者角色 (從 BUYER 變成 STORES)
+        // 3. 提升使用者角色 (從 BUYER 變成 MERCHANT)
         // 這樣他下次登入時，前端或後端權限控管才能識別他是賣家
         Users user = store.getUser();
         if (user != null) {

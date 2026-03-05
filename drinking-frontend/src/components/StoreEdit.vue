@@ -30,14 +30,36 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-// 💡 這些資料通常是從父組件傳進來，或是在 onMounted 時從後端 GET 回來的
-const storeId = ref(1); // 假設這是你要改的店家 ID
+const storeId = ref(null);
 const storeName = ref('');
-const imageUrl = ref(''); // 這是 Cloudinary 回傳的網址
+const imageUrl = ref('');
 const isUploading = ref(false);
+
+// 💡 頁面載入時，直接從 localStorage 拿 storeId（登入時已存好）
+onMounted(async () => {
+  const token = localStorage.getItem('token');
+  const sid = localStorage.getItem('storeId');
+
+  if (!token) return alert('請先登入');
+  if (!sid) return alert('您尚未申請開店');
+
+  storeId.value = sid;
+
+  // 用 storeId 拉現有店家資料填入表單
+  try {
+    const res = await axios.get(`http://localhost:8081/api/stores/${sid}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const store = res.data.data;
+    storeName.value = store.name || '';
+    imageUrl.value = store.imageUrl || '';
+  } catch (err) {
+    alert('載入店家資料失敗：' + (err.response?.data?.msg || err.message));
+  }
+});
 
 // 1. 處理圖片上傳到 Cloudinary
 const onFileChange = async (e) => {
@@ -81,7 +103,10 @@ const submitUpdate = async () => {
       imageUrl: imageUrl.value
     };
 
-    const res = await axios.put('http://localhost:8081/api/stores/update', payload);
+    const token = localStorage.getItem('token');
+    const res = await axios.put('http://localhost:8081/api/stores/update', payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
     if (res.data.code === "200") {
       alert("資料庫更新成功！");

@@ -113,7 +113,15 @@ const handleSocialLoginSuccess = async (idToken, provider) => {
     const res = await axios.post('http://localhost:8081/api/auth/social-login', payload);
 
     if (res.data.code === "200" || res.data.code === 200) {
+      const { token, name, role, userId, storeStatus, storeId } = res.data.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('name', name);
+      localStorage.setItem('role', role);
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('storeStatus', storeStatus);
+      if (storeId) localStorage.setItem('storeId', storeId);
       alert("✅ 登入成功！");
+      router.push('/dashboard');
     }
 
     else if (res.data.code === "201" || res.data.code === 201) {
@@ -154,8 +162,8 @@ const loginWithFacebook = async () => {
 
   const provider = new FacebookAuthProvider();
 
-  // 💡 選填設定：如果需要抓取使用者的電子郵件
-  provider.addScope('email');
+  // // 💡 選填設定：如果需要抓取使用者的電子郵件
+  // provider.addScope('email');
 
   try {
     // 💡 使用 Popup 模式，測試最穩
@@ -186,12 +194,13 @@ const handleLogin = async () => {
   try {
     const response = await axios.post('http://localhost:8081/api/auth/login', loginForm);
     if (response.data.code === "200") {
-      const { token, name, role, userId, storeStatus } = response.data.data;
+      const { token, name, role, userId, storeStatus, storeId } = response.data.data;
       localStorage.setItem('token', token);
       localStorage.setItem('name', name);
       localStorage.setItem('role', role);
       localStorage.setItem('userId', userId);
       localStorage.setItem('storeStatus', storeStatus);
+      if (storeId) localStorage.setItem('storeId', storeId);
       alert("✅ 登入成功！");
       router.push('/dashboard');
     } else {
