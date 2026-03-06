@@ -4,7 +4,6 @@
       <h2>手機號碼註冊</h2>
       <p class="subtitle">建立新帳號以開始使用</p>
 
-      <!-- 💡 模式切換開關 -->
       <div class="mode-switch">
         <label>
           <input type="checkbox" v-model="isMockMode" />
@@ -65,25 +64,30 @@ const otpSent = ref(false);
 const isSending = ref(false);
 const isSubmitting = ref(false);
 const confirmationResult = ref(null);
-const isMockMode = ref(true); // 💡 預設 Mock 模式，切換成 false 就打真實簡訊
+const isMockMode = ref(true);
 
 const handleSendSms = async () => {
   if (!phoneNumber.value || phoneNumber.value.length < 10) return alert("請輸入正確的手機號碼");
   isSending.value = true;
 
   try {
+    // 💡 先檢查手機號碼是否已註冊
+    const checkRes = await axios.get('http://localhost:8081/api/auth/check-phone', {
+      params: { phone: phoneNumber.value }
+    });
+    if (checkRes.data.data === true) {
+      alert("❌ 此號碼已註冊過，請直接登入");
+      return;
+    }
+
     if (isMockMode.value) {
-      // ✅ Mock 模式：直接跳過 Firebase
       otpSent.value = true;
       alert("【Mock 模式】驗證碼已模擬發送！請輸入任意 6 碼繼續");
     } else {
-      // ✅ 真實模式：打 Firebase 簡訊
       if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'normal' });
-
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
       const formatPhone = "+886" + phoneNumber.value.replace(/^0/, '');
       console.log("發送至號碼:", formatPhone);
-
       const result = await signInWithPhoneNumber(auth, formatPhone, window.recaptchaVerifier);
       confirmationResult.value = result;
       otpSent.value = true;
@@ -91,7 +95,7 @@ const handleSendSms = async () => {
     }
   } catch (err) {
     console.error("SMS 錯誤詳情:", err);
-    alert("發送失敗: " + err.code);
+    alert("發送失敗: " + (err.response?.data?.msg || err.code || err.message));
   } finally {
     isSending.value = false;
   }
@@ -103,12 +107,9 @@ const handleRegister = async () => {
 
   try {
     let idToken;
-
     if (isMockMode.value) {
-      // ✅ Mock 模式：直接用 MOCK_TOKEN
       idToken = "MOCK_TOKEN";
     } else {
-      // ✅ 真實模式：用 Firebase 驗證 OTP 取得 Token
       const result = await confirmationResult.value.confirm(otpCode.value);
       idToken = await result.user.getIdToken();
     }
@@ -123,14 +124,12 @@ const handleRegister = async () => {
     if (res.data.code === "200" || res.data.code === 200) {
       alert("註冊成功！");
       router.push('/');
-    } else if (res.data.code === "400" || res.data.code === 400) {
-      alert("此號碼已註冊過");
     } else {
       alert("❌ " + res.data.msg);
     }
   } catch (err) {
     console.error("註冊錯誤:", err);
-    alert("驗證碼錯誤或系統繁忙");
+    alert("❌ " + (err.response?.data?.msg || "驗證碼錯誤或系統繁忙"));
   } finally {
     isSubmitting.value = false;
   }

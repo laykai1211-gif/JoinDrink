@@ -4,11 +4,11 @@ import com.example.demo.common.JwtUtils;
 import com.example.demo.common.Result;
 import com.example.demo.dto.ClassicAuthRequest;
 import com.example.demo.dto.SocialAuthRequest;
+import com.example.demo.dto.UpdateUserRequest;
 import com.example.demo.entity.*;
 import com.example.demo.exception.CustomException;
 import com.example.demo.repository.StoresRepository;
 import com.example.demo.entity.UserAuthProvider;
-import com.example.demo.dto.UpdateUserRequest;
 import com.example.demo.repository.UsersAuthProviderRepository;
 import com.example.demo.repository.UsersRepository;
 import com.google.firebase.auth.FirebaseAuth;
@@ -20,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -30,6 +29,16 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class AuthService {
+
+    // 💡 讀取 application.yml 配置
+//    @Value("${twilio.account_sid}")
+//    private String accountSid;
+//
+//    @Value("${twilio.auth_token}")
+//    private String authToken;
+//
+//    @Value("${twilio.from_number}")
+//    private String fromNumber;
 
     @Value("${app.reset_password_url}")
     private String resetPasswordUrl;
@@ -167,6 +176,7 @@ public class AuthService {
         Users user = usersRepository.findByPhoneNumber(req.getPhoneNumber())
                 .orElseThrow(() -> new CustomException("404", "帳號不存在"));
 
+        // 💡 檢查是否為純三方帳號（沒有設定密碼）
         if (user.getPassword() == null) {
             throw new CustomException("403", "此帳號是以三方登入建立，請使用 Google 登入或點擊忘記密碼設定密碼");
         }
@@ -181,8 +191,8 @@ public class AuthService {
 
     public Result socialLogin(SocialAuthRequest req) throws Exception {
         // 1. 驗證 Firebase Token (這部分原本的寫法沒問題)
-        // 決定 provider 名稱 (google.com / facebook.com)
-        String providerName = (req.getIdToken() != null && req.getIdToken().contains("MOCK")) ? "GOOGLE" : "GOOGLE";
+        // 💡 從前端傳來的 provider 決定平台，預設 GOOGLE
+        String providerName = (req.getProvider() != null) ? req.getProvider().toUpperCase() : "GOOGLE";
         String uid = "MOCK_TOKEN".equals(req.getIdToken())
                 ? "MOCK_UID_SOCIAL_" + (req.getPhoneNumber() != null ? req.getPhoneNumber() : "NEW")
                 : FirebaseAuth.getInstance().verifyIdToken(req.getIdToken()).getUid();
@@ -237,7 +247,7 @@ public class AuthService {
     // ============================================================
 
     private Map<String, Object> generateLoginResponse(Users user) {
-        String token = jwtUtils.generateToken(user.getId(), user.getRole(), user.getPhoneNumber());
+        String token = jwtUtils.generateToken(user.getId(), user.getRole(),user.getPhoneNumber());
         String storeStatus = (user.getStore() != null) ? user.getStore().getStatus() : "NONE";
 
         Long storeId = (user.getStore() != null) ? user.getStore().getId() : null;
@@ -309,6 +319,9 @@ public class AuthService {
         storesRepository.save(store);
         log.info("管理員已核准用戶 ID: {} 的開店申請，身分已變更為賣家", userId);
     }
+
+
+
 
     @Transactional
     public void update(Long currentUserId, UpdateUserRequest req) {

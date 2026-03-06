@@ -47,7 +47,7 @@
                 autoFocus
             />
           </div>
-          <button @click="handleSocialLoginSuccess(tempIdToken, 'google.com')" class="btn-primary">
+          <button @click="handleSocialLoginSuccess(tempIdToken, tempProvider)" class="btn-primary">
             完成綁定並登入
           </button>
           <button @click="showPhoneInput = false" class="btn-text" style="width: 100%; margin-top: 10px;">返回登入方式</button>
@@ -79,6 +79,7 @@ const isLoading = ref(false);
 const loginForm = reactive({ phoneNumber: '', password: '' });
 const showPhoneInput = ref(false);
 const tempIdToken = ref('');
+const tempProvider = ref('');
 
 // 🚀 頁面掛載：檢查是否有從 Google 跳轉回來的 Token
 onMounted(async () => {
@@ -105,28 +106,22 @@ const handleSocialLoginSuccess = async (idToken, provider) => {
   try {
     const payload = {
       idToken: idToken,
-      phoneNumber: loginForm.phoneNumber, // 如果是第一次，這裡是空字串
-      name: auth.currentUser?.displayName || "新用戶"
+      phoneNumber: loginForm.phoneNumber,
+      name: auth.currentUser?.displayName || "新用戶",
+      provider: provider === 'facebook.com' ? 'FACEBOOK' : 'GOOGLE'  // 💡 帶上平台
     };
 
     console.log("正在發送請求至後端...", payload);
     const res = await axios.post('http://localhost:8081/api/auth/social-login', payload);
 
     if (res.data.code === "200" || res.data.code === 200) {
-      const { token, name, role, userId, storeStatus, storeId } = res.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('name', name);
-      localStorage.setItem('role', role);
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('storeStatus', storeStatus);
-      if (storeId) localStorage.setItem('storeId', storeId);
       alert("✅ 登入成功！");
-      router.push('/dashboard');
     }
 
     else if (res.data.code === "201" || res.data.code === 201) {
       // 💡 這裡要用 .value 賦值
       tempIdToken.value = idToken;
+      tempProvider.value = provider; // 💡 記住是哪個平台
       showPhoneInput.value = true;
       alert("首次登入，請輸入手機號碼以完成綁定");
     }
@@ -162,8 +157,8 @@ const loginWithFacebook = async () => {
 
   const provider = new FacebookAuthProvider();
 
-  // // 💡 選填設定：如果需要抓取使用者的電子郵件
-  // provider.addScope('email');
+  // 💡 選填設定：如果需要抓取使用者的電子郵件
+  provider.addScope('email');
 
   try {
     // 💡 使用 Popup 模式，測試最穩
@@ -194,13 +189,6 @@ const handleLogin = async () => {
   try {
     const response = await axios.post('http://localhost:8081/api/auth/login', loginForm);
     if (response.data.code === "200") {
-      const { token, name, role, userId, storeStatus, storeId } = response.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('name', name);
-      localStorage.setItem('role', role);
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('storeStatus', storeStatus);
-      if (storeId) localStorage.setItem('storeId', storeId);
       alert("✅ 登入成功！");
       router.push('/dashboard');
     } else {
